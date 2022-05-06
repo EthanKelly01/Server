@@ -90,12 +90,18 @@ public class main extends Application {
             login.add(errorLog, 0, 4, 2, 1);
 
             regBtn.setOnAction(e -> {
-                if (loginSystem.add(userField.getText(), passField.getText())) primaryStage.getScene().setRoot(home);
+                if (loginSystem.add(userField.getText(), passField.getText())) {
+                    loginSystem.regUsername(userField.getText());
+                    primaryStage.getScene().setRoot(home);
+                }
                 else errorLog.setText("Username taken.");
             });
 
             loginBtn.setOnAction(e -> {
-                if (loginSystem.check(userField.getText(), passField.getText())) primaryStage.getScene().setRoot(home);
+                if (loginSystem.check(userField.getText(), passField.getText())) {
+                    loginSystem.regUsername(userField.getText());
+                    primaryStage.getScene().setRoot(home);
+                }
                 else errorLog.setText("Invalid input.");
             });
 
@@ -237,9 +243,6 @@ public class main extends Application {
 
             //---------------------------------------------------------------
 
-            TextField userName = new TextField("anonymous");
-            HBox hbox = new HBox(new Label("Username: "), userName);
-            hbox.setAlignment(Pos.TOP_LEFT);
             TextArea message = new TextArea();
             Label errorLog = new Label();
 
@@ -254,7 +257,7 @@ public class main extends Application {
             message.setOnKeyPressed(keyEvent -> {
                 if (keyEvent.getCode() == KeyCode.ENTER) {
                     if (keyEvent.isShiftDown()) message.appendText("\n");
-                    else if (!client.getConnection() || userName.getText().isEmpty()) {
+                    else if (!client.getConnection()) {
                         if (!client.getConnection())
                             nodeBtn.fire();
                         if (!client.getConnection()) {
@@ -264,7 +267,7 @@ public class main extends Application {
                             message.setText(message.getText().substring(0, pos - 1) + message.getText().substring(pos, message.getLength()));
                             message.positionCaret(pos - 1);
                         } else {
-                            if (client.send(userName.getText(), message.getText())){
+                            if (client.send(loginSystem.getUsername(), message.getText())){
                                 errorLog.setText("");
                                 message.setText("");
                             } else {
@@ -273,15 +276,10 @@ public class main extends Application {
                                 message.selectPositionCaret(message.getLength());
                             }
                         }
-                    } else if (userName.getText().isEmpty()) {
-                        errorLog.setText("Username is blank!");
-                        int pos = message.getCaretPosition();
-                        message.setText(message.getText().substring(0, pos - 1) + message.getText().substring(pos, message.getLength()));
-                        message.positionCaret(pos - 1);
                     } else if (message.getLength() <= 1) {
                         errorLog.setText("Message is blank!");
                         message.setText("");
-                    } else if (client.send(userName.getText(), message.getText())){
+                    } else if (client.send(loginSystem.getUsername(), message.getText())){
                         errorLog.setText("");
                         message.setText("");
                     } else {
@@ -293,7 +291,7 @@ public class main extends Application {
             });
 
             VBox.setVgrow(message, Priority.SOMETIMES);
-            VBox vbox = new VBox(hbox, new Label(), new Label("Message"), message, errorLog);
+            VBox vbox = new VBox(new Label("Message"), message, errorLog);
             VBox.setVgrow(vbox, Priority.SOMETIMES);
             vbox.setPadding(new Insets(20));
 

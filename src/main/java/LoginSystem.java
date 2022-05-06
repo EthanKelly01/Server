@@ -4,6 +4,7 @@ import java.util.*;
 public class LoginSystem {
     private final HashMap<String, String> loginInfo = new HashMap<>();
     private final String filename;
+    private String username;
 
     LoginSystem(String filename) {
         this.filename = filename;
@@ -39,4 +40,8 @@ public class LoginSystem {
     }
 
     protected boolean check(String username, String password) {return Objects.equals(loginInfo.get(username), password);}
+
+    protected void regUsername(String name) { username = name; }
+
+    protected String getUsername() { return username; }
 }
