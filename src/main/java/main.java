@@ -7,12 +7,17 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
+import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 
 public class main extends Application {
+    LoginSystem loginSystem = new LoginSystem("testFiles/login.info");
     Client client = null;
     Server server = null;
     Thread srvrThread = null;
@@ -21,9 +26,7 @@ public class main extends Application {
     final ImageView imOn = new ImageView(new Image(Objects.requireNonNull(getClass().getResourceAsStream("on_button.png")))),
             imOff = new ImageView(new Image(Objects.requireNonNull(getClass().getResourceAsStream("off_button.png"))));
 
-    public void append(String str) {
-        textArea.appendText(str + "\n");
-    }
+    public void append(String str) {textArea.appendText(str + "\n");}
 
     public void logServer(String str) { synchronized (serverLogger) {serverLogger.appendText(str + "\n");} }
 
@@ -43,15 +46,68 @@ public class main extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        primaryStage.setTitle("Lab10");
+        primaryStage.setTitle("My Server Thing");
 
         //create scenes
+        GridPane login = new GridPane();
         VBox home = new VBox();
         VBox serverPage = new VBox();
         VBox clientPage = new VBox();
+        VBox fileViewer = new VBox();
 
         String address = "localhost"; //default vars
         int port = 6666;
+
+        //login page
+        {
+            ImageView logo = new ImageView(new Image("icon_dark.png")); //logo
+            logo.setFitHeight(40);
+            logo.setFitWidth(40);
+            login.add(logo, 0, 0);
+
+            Text scenetitle = new Text("Welcome"); //splash text
+            scenetitle.setFont(Font.font("Tahoma", FontWeight.NORMAL, 20));
+            VBox myText = new VBox(scenetitle);
+            myText.setAlignment(Pos.CENTER_RIGHT);
+            login.add(myText, 1, 0);
+
+            login.add(new Label("Username:"), 0, 1);
+            TextField userField = new TextField();
+            login.add(userField, 1, 1);
+
+            login.add(new Label("Password:"), 0, 2);
+            PasswordField passField = new PasswordField();
+            login.add(passField, 1, 2);
+
+            Button loginBtn = new Button("Sign in");
+            Button regBtn = new Button("Register");
+            HBox hbBtn = new HBox(10, regBtn, loginBtn);
+            hbBtn.setAlignment(Pos.BOTTOM_RIGHT);
+            login.add(hbBtn, 1, 4);
+
+            final Text errorLog = new Text();
+            errorLog.setFill(Color.FIREBRICK);
+            login.add(errorLog, 0, 4, 2, 1);
+
+            regBtn.setOnAction(e -> {
+                if (loginSystem.add(userField.getText(), passField.getText())) primaryStage.getScene().setRoot(home);
+                else errorLog.setText("Username taken.");
+            });
+
+            loginBtn.setOnAction(e -> {
+                if (loginSystem.check(userField.getText(), passField.getText())) primaryStage.getScene().setRoot(home);
+                else errorLog.setText("Invalid input.");
+            });
+
+            userField.setOnKeyPressed(keyEvent -> {if (keyEvent.getCode() == KeyCode.ENTER) passField.requestFocus();});
+            passField.setOnKeyPressed(keyEvent -> {if (keyEvent.getCode() == KeyCode.ENTER) loginBtn.fire();});
+
+            //scene
+            login.setAlignment(Pos.CENTER);
+            login.setHgap(10);
+            login.setVgap(10);
+            login.setPadding(new Insets(25));
+        }
 
         //main menu
         Button serverBtn = new Button("Server");
@@ -245,10 +301,11 @@ public class main extends Application {
         }
 
         //start stage
-        primaryStage.setScene(new Scene(home, 450, 300));
+        primaryStage.setScene(new Scene(login, 450, 300));
         primaryStage.show();
 
         primaryStage.setOnCloseRequest(event -> {
+            loginSystem.save();
             if (server != null) server.end();
             if (client != null) client.end();
         });
