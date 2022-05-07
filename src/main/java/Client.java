@@ -3,6 +3,7 @@ import java.io.*;
 import java.util.HashMap;
 
 public class Client {
+    private DataOutputStream dataOut = null;
     private PrintWriter out = null;
     private BufferedReader in = null;
     private Socket skt = null;
@@ -22,7 +23,8 @@ public class Client {
     public boolean connect(int port){
         try {
             skt = new Socket(address, port);
-            out = new PrintWriter(skt.getOutputStream(), true);
+            dataOut = new DataOutputStream(skt.getOutputStream());
+            out = new PrintWriter(dataOut, true);
             in = new BufferedReader(new InputStreamReader(skt.getInputStream()));
             updateClient();
             return true;
@@ -53,7 +55,7 @@ public class Client {
 
     public boolean send(String username, String message){
         if (updateClient()) {
-            String output = config.get("format"); //allows updated servers to work with any client
+            String output = config.get("message"); //allows updated servers to work with any client
             output = output.replaceAll("username", username);
             output = output.replaceAll("message", message);
             out.println(output);
@@ -61,6 +63,47 @@ public class Client {
         } else {
             connected = false;
             return false;
+        }
+    }
+
+    public void sendFile(String filename) {
+        if (updateClient()) {
+            out.println(config.get("file").replace("filepath", filename));
+
+            int bytes = 0;
+            try{
+                File file = new File(filename);
+                FileInputStream fileIn = new FileInputStream(file);
+
+                dataOut.writeLong(file.length());
+
+                byte[] buffer = new byte[16*1024];
+                while ((bytes = fileIn.read(buffer)) != -1) {
+                    dataOut.write(buffer, 0, bytes);
+                    dataOut.flush();
+                }
+                fileIn.close();
+            } catch (IOException ignored) {}
+        }
+    }
+
+    public void sendFile(File file) {
+        if (updateClient()) {
+            out.println(config.get("file").replace("filepath", file.getName()));
+
+            int bytes = 0;
+            try{
+                FileInputStream fileIn = new FileInputStream(file);
+
+                dataOut.writeLong(file.length());
+
+                byte[] buffer = new byte[16*1024];
+                while ((bytes = fileIn.read(buffer)) != -1) {
+                    dataOut.write(buffer, 0, bytes);
+                    dataOut.flush();
+                }
+                fileIn.close();
+            } catch (IOException ignored) {}
         }
     }
 

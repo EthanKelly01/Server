@@ -304,6 +304,7 @@ public class main extends Application {
 
                 if (choice != null) {
                     for (File x : choice){
+                        client.sendFile(x);
                         System.out.println(x);
                     }
                 }
@@ -387,5 +388,3 @@ c.setOnAction(e-> {
     }
 });
  */
-
-//TODO: file extensions https://stackoverflow.com/questions/9375938/javafx-filechooser-and-directorychooser

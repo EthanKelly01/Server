@@ -18,10 +18,13 @@ public class Server implements Runnable {
 
     public Server(int port, main main) {
         //setup config
-        config.put("delimiter", "`");
-        config.put("update", "update");
-        config.put("disconnect", "end");
-        config.put("format", "username: message");
+        {
+            config.put("delimiter", "`");
+            config.put("update", "update");
+            config.put("disconnect", "end");
+            config.put("message", "<message>username: message");
+            config.put("file", "<file>filepath");
+        }
 
         try {
             srvr = new ServerSocket(port);
@@ -100,7 +103,8 @@ public class Server implements Runnable {
         public void run() {
             try{
                 PrintWriter out = new PrintWriter(skt.getOutputStream(), true);
-                BufferedReader in = new BufferedReader(new InputStreamReader(skt.getInputStream()));
+                DataInputStream dataIn = new DataInputStream(skt.getInputStream());
+                BufferedReader in = new BufferedReader(new InputStreamReader(dataIn));
 
                 out.println(getConfig());
 
@@ -110,7 +114,8 @@ public class Server implements Runnable {
                 while (!this.isInterrupted() && (input = in.readLine()) != null) {
                     if (input.equals(config.get("disconnect"))) break;
                     else if (input.equals(config.get("update"))) out.println(getConfig());
-                    else srvr.main.append(input);
+                    else if (input.contains("<message>")) srvr.main.append(input.substring(input.indexOf(">") + 1));
+                    else  if (input.contains("<file>")) download("testFiles/ServerDir/" + input.substring(input.indexOf(">") + 1), dataIn);
                 }
                 in.close();
                 out.close();
@@ -119,6 +124,24 @@ public class Server implements Runnable {
             } catch (IOException e) {e.printStackTrace();}
             srvr.removeThread(this);
             srvr.main.logServer(">Connection closed\n");
+        }
+
+        private boolean download(String filename, DataInputStream in) {
+            try {
+                int bytes = 0;
+                FileOutputStream fileOut = new FileOutputStream(filename);
+
+                long size = in.readLong();
+                byte[] buffer = new byte[16 * 1024];
+                while (size > 0 && (bytes = in.read(buffer, 0, (int) Math.min(buffer.length, size))) != -1) {
+                    fileOut.write(buffer, 0, bytes);
+                    size -= bytes;
+                }
+                fileOut.close();
+                return true;
+            } catch (IOException e) { e.printStackTrace(); }
+
+            return false;
         }
     }
 }
