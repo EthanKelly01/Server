@@ -8,7 +8,12 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.scene.text.Text;
+import javafx.stage.DirectoryChooser;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+
+import java.io.File;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
@@ -42,6 +47,15 @@ public class main extends Application {
             imOff.setFitHeight(10);
             serverStatus.setGraphic(imOff);
         }
+    }
+
+    public TreeItem<String> getNodesForDirectory(File directory) { //Returns a TreeItem representation of the specified directory
+        TreeItem<String> root = new TreeItem<String>(directory.getName());
+        for(File f : Objects.requireNonNull(directory.listFiles())) {
+            if (f.isDirectory()) root.getChildren().add(getNodesForDirectory(f));
+            else root.getChildren().add(new TreeItem<String>(f.getName()));
+        }
+        return root;
     }
 
     @Override
@@ -241,9 +255,6 @@ public class main extends Application {
             Button nodeBtn = new Button("Set Port");
             textField.setOnKeyPressed(keyEvent -> {if (keyEvent.getCode() == KeyCode.ENTER) nodeBtn.fire();});
 
-            //---------------------------------------------------------------
-
-            TextArea message = new TextArea();
             Label errorLog = new Label();
 
             nodeBtn.setOnAction(action -> {
@@ -254,7 +265,55 @@ public class main extends Application {
                 else errorLog.setText("Connected to a new server.");
             });
 
-            message.setOnKeyPressed(keyEvent -> {
+            //TODO: add status display
+
+            //---------------------------------------------------------------
+
+            TreeView<String> localView = new TreeView<String>();
+            localView.setRoot(getNodesForDirectory(new File("testFiles/")));
+            HBox.setHgrow(localView, Priority.SOMETIMES);
+
+            TreeView<String> remoteView = new TreeView<String>();
+            remoteView.setRoot(getNodesForDirectory(new File("testFiles/")));
+            HBox.setHgrow(remoteView, Priority.SOMETIMES);
+
+            HBox content = new HBox(localView, remoteView);
+            VBox.setVgrow(content, Priority.SOMETIMES);
+
+            content.setSpacing(10);
+            content.setPadding(new Insets(5, 10, 0, 10));
+
+            //---------------------------------------------------------------
+
+            Button attachBtn = new Button("+");
+
+            attachBtn.setOnAction(e-> {
+                FileChooser explorer = new FileChooser();
+                explorer.setInitialDirectory(new File("testFiles/"));
+                explorer.getExtensionFilters().addAll(
+                        new FileChooser.ExtensionFilter("All Files", "*.*"),
+                        new FileChooser.ExtensionFilter("Text Files", "*.txt"),
+                        new FileChooser.ExtensionFilter("Comma-Separated Value Files", "*.csv"),
+                        new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.gif"),
+                        new FileChooser.ExtensionFilter("Audio Files", "*.wav", "*.mp3", "*.aac"),
+                        new FileChooser.ExtensionFilter("Source Code Files", "*.cpp", "*.h", "*.hpp", "*.java"),
+                        new FileChooser.ExtensionFilter("Executable Files", "*.exe")
+                );
+
+                List<File> choice = explorer.showOpenMultipleDialog(primaryStage);
+
+                if (choice != null) {
+                    for (File x : choice){
+                        System.out.println(x);
+                    }
+                }
+
+            });
+
+            TextField message = new TextField();
+            HBox.setHgrow(message, Priority.SOMETIMES);
+
+            message.setOnKeyPressed(keyEvent -> { //TODO: redo commands
                 if (keyEvent.getCode() == KeyCode.ENTER) {
                     if (keyEvent.isShiftDown()) message.appendText("\n");
                     else if (!client.getConnection()) {
@@ -290,12 +349,9 @@ public class main extends Application {
                 }
             });
 
-            VBox.setVgrow(message, Priority.SOMETIMES);
-            VBox vbox = new VBox(new Label("Message"), message, errorLog);
-            VBox.setVgrow(vbox, Priority.SOMETIMES);
-            vbox.setPadding(new Insets(20));
+            //---------------------------------------------------------------
 
-            clientPage.getChildren().addAll(new ToolBar(homeBtn, textField, nodeBtn), vbox);
+            clientPage.getChildren().addAll(new ToolBar(homeBtn, textField, nodeBtn), content, new ToolBar(attachBtn, message));
         }
 
         //start stage
@@ -311,3 +367,25 @@ public class main extends Application {
 
     public static void main(String[] args) {launch();} //launch the main JavaFX function
 }
+
+/*
+Button c = new Button("Load Folder");
+
+c.setOnAction(e-> {
+    DirectoryChooser dc = new DirectoryChooser();
+    dc.setInitialDirectory(new File("testFiles/"));
+    File choice = dc.showDialog(primaryStage);
+    if(choice == null || ! choice.isDirectory()) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setHeaderText("Could not open directory");
+        alert.setContentText("The file is invalid.");
+
+        alert.showAndWait();
+    } else {
+        System.out.println(choice);
+        a.setRoot(getNodesForDirectory(new File("testFiles/")));
+    }
+});
+ */
+
+//TODO: file extensions https://stackoverflow.com/questions/9375938/javafx-filechooser-and-directorychooser

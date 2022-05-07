@@ -22,8 +22,6 @@ public class LoginSystem {
     }
 
     protected void save() {
-        System.out.println(loginInfo.size());
-        for (Map.Entry<String, String> entry : loginInfo.entrySet()) System.out.println(entry.getKey() + " " + entry.getValue());
         try {
             FileWriter out = new FileWriter(filename);
             String output = "";
