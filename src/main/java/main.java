@@ -1,3 +1,4 @@
+import FileBrowser.FileTreeItem;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -8,11 +9,13 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.scene.text.Text;
-import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-
 import java.io.File;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.nio.file.FileSystems;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
@@ -47,15 +50,6 @@ public class main extends Application {
             imOff.setFitHeight(10);
             serverStatus.setGraphic(imOff);
         }
-    }
-
-    public TreeItem<String> getNodesForDirectory(File directory) { //Returns a TreeItem representation of the specified directory
-        TreeItem<String> root = new TreeItem<String>(directory.getName());
-        for(File f : Objects.requireNonNull(directory.listFiles())) {
-            if (f.isDirectory()) root.getChildren().add(getNodesForDirectory(f));
-            else root.getChildren().add(new TreeItem<String>(f.getName()));
-        }
-        return root;
     }
 
     @Override
@@ -269,12 +263,24 @@ public class main extends Application {
 
             //---------------------------------------------------------------
 
-            TreeView<String> localView = new TreeView<String>();
-            localView.setRoot(getNodesForDirectory(new File("testFiles/")));
+            Image compImg = new Image(Objects.requireNonNull(ClassLoader.getSystemResourceAsStream("computer.png")));
+
+            String hostName = "Local";
+            try { hostName += "- " + InetAddress.getLocalHost().getHostName(); } catch (UnknownHostException ignored) {}
+            TreeItem<String> rootNode = new TreeItem<>(hostName, new ImageView(compImg));
+
+            for (Path name : FileSystems.getDefault().getRootDirectories()) rootNode.getChildren().add(new FileTreeItem(name, true));
+            rootNode.setExpanded(true);
+
+            TreeView<String> localView = new TreeView<>(rootNode);
             HBox.setHgrow(localView, Priority.SOMETIMES);
 
-            TreeView<String> remoteView = new TreeView<String>();
-            remoteView.setRoot(getNodesForDirectory(new File("testFiles/")));
+            TreeItem<String> remoteRoot = new TreeItem<>("Remote Repository", new ImageView(compImg));
+            for (Path x : FileSystems.getDefault().getPath("testFiles")) remoteRoot.getChildren().add(new FileTreeItem(x, true));
+            remoteRoot.setExpanded(true);
+
+            TreeView<String> remoteView = new TreeView<>(remoteRoot);
+
             HBox.setHgrow(remoteView, Priority.SOMETIMES);
 
             HBox content = new HBox(localView, remoteView);
@@ -365,8 +371,6 @@ public class main extends Application {
             if (client != null) client.end();
         });
     }
-
-    public static void main(String[] args) {launch();} //launch the main JavaFX function
 }
 
 /*
