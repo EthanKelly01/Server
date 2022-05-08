@@ -5,8 +5,8 @@
  
 ### Roadmap
 - [x] 01. Login System
-- [ ] 02. File Viewer
-- [ ] 03. File Passing
+- [x] 02. File Viewer
+- [x] 03. File Passing
 - [ ] 04. Retrieving Files
 - [ ] 05. Finding a Server
 - [ ] 06. Profiles
@@ -14,9 +14,9 @@
 
 ---
 
-<img width="48%" align="left" src="https://github.com/EthanKelly01/Server/blob/main/assets/login.png?raw=true">
-<img width="48%" align="right" src="https://github.com/EthanKelly01/Server/blob/main/assets/main.png?raw=true">
-<img width="48%" align="left" src="https://github.com/EthanKelly01/Server/blob/main/assets/server.png?raw=true">
-<img width="48%" align="right" src="https://github.com/EthanKelly01/Server/blob/main/assets/client.png?raw=true">
+<img width="47%" align="left" src="https://github.com/EthanKelly01/Server/blob/main/assets/login.png?raw=true">
+<img width="47%" align="right" src="https://github.com/EthanKelly01/Server/blob/main/assets/main.png?raw=true">
+<img width="47%" align="left" src="https://github.com/EthanKelly01/Server/blob/main/assets/server.png?raw=true">
+<img width="47%" align="right" src="https://github.com/EthanKelly01/Server/blob/main/assets/client.png?raw=true">
 
 <img align="center" src="https://github.com/EthanKelly01/Server/blob/main/assets/working.png?raw=true">
