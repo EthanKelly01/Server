@@ -16,6 +16,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
@@ -30,7 +31,7 @@ public class main extends Application {
     Server server = null;
     Thread srvrThread = null;
     final TextArea textArea = new TextArea(), serverLogger = new TextArea();
-    final Label serverStatus = new Label();
+    final Label serverStatus = new Label(), clientStatus = new Label();
     final ImageView imOn = new ImageView(new Image(Objects.requireNonNull(getClass().getResourceAsStream("on_button.png")))),
             imOff = new ImageView(new Image(Objects.requireNonNull(getClass().getResourceAsStream("off_button.png"))));
 
@@ -40,15 +41,23 @@ public class main extends Application {
 
     public void updateStatus(boolean stat) {
         if (stat) {
-            serverStatus.setText("Server Status: Connected ");
-            imOn.setFitHeight(10);
-            imOn.setFitWidth(10);
-            serverStatus.setGraphic(imOn);
+            if (server != null) {
+                serverStatus.setText("Server Status: Connected ");
+                serverStatus.setGraphic(imOn);
+            }
+            if (client != null) {
+                clientStatus.setText("Connection Status: Connected ");
+                clientStatus.setGraphic(imOn);
+            }
         } else {
-            serverStatus.setText("Server Status: Off ");
-            imOff.setFitWidth(10);
-            imOff.setFitHeight(10);
-            serverStatus.setGraphic(imOff);
+            if (server != null) {
+                serverStatus.setText("Server Status: Off ");
+                serverStatus.setGraphic(imOff);
+            }
+            if (client != null) {
+                clientStatus.setText("Connection Status: Disconnected ");
+                clientStatus.setGraphic(imOff);
+            }
         }
     }
 
@@ -61,10 +70,15 @@ public class main extends Application {
         VBox home = new VBox();
         VBox serverPage = new VBox();
         VBox clientPage = new VBox();
-        VBox fileViewer = new VBox();
 
         String address = "localhost"; //default vars
         int port = 6666;
+
+        //set images
+        imOn.setFitHeight(10);
+        imOn.setFitWidth(10);
+        imOff.setFitWidth(10);
+        imOff.setFitHeight(10);
 
         //login page
         {
@@ -100,6 +114,7 @@ public class main extends Application {
             regBtn.setOnAction(e -> {
                 if (loginSystem.add(userField.getText(), passField.getText())) {
                     loginSystem.regUsername(userField.getText());
+                    loginSystem.save();
                     primaryStage.getScene().setRoot(home);
                 }
                 else errorLog.setText("Username taken.");
@@ -131,7 +146,8 @@ public class main extends Application {
             Button clientBtn = new Button("Client");
             clientBtn.setPrefSize(200, 10);
             clientBtn.setOnAction(e -> {
-                client = new Client(address, port);
+                client = new Client(port, address);
+                updateStatus(client.getConnection());
                 primaryStage.getScene().setRoot(clientPage);
             });
 
@@ -189,12 +205,11 @@ public class main extends Application {
                     serverLog.setText("No valid port found. Please try a different port.");
                     textField.setText(Integer.toString(server.getPort()));
                 } else if (Integer.parseInt(textField.getText()) == server.getPort()) serverLog.setText("Already connected to that port.");
-                else if (!server.changePort(Integer.parseInt(textField.getText()))) {
+                else if (!server.connect(Integer.parseInt(textField.getText()))) {
                     serverLog.setText("No valid port found. Please try a different port.");
                     textField.setText(Integer.toString(server.getPort()));
                 } else {
                     textArea.clear();
-                    //synchronized (serverLogger){serverLogger.clear();}
                     serverLogger.clear();
                     serverLog.setText("Connected to a new port.");
                 }
@@ -255,11 +270,14 @@ public class main extends Application {
                 if (client == null) errorLog.setText("Client issue. Please contact the developer.");
                 else if (textField.getText().equals("") || textField.getText().equals("0")) errorLog.setText("No valid server found. Please try a different port.");
                 else if (Integer.parseInt(textField.getText()) == client.getPort() && client.getConnection()) errorLog.setText("Already connected to that port.");
-                else if (!client.changePort(Integer.parseInt(textField.getText()))) errorLog.setText("No valid server found. Please try a different port.");
+                else if (!client.connect(Integer.parseInt(textField.getText()))) errorLog.setText("No valid server found. Please try a different port.");
                 else errorLog.setText("Connected to a new server.");
+
+                updateStatus(client.getConnection());
             });
 
-            //TODO: add status display
+            Pane expander = new Pane();
+            HBox.setHgrow(expander, Priority.ALWAYS);
 
             //---------------------------------------------------------------
 
@@ -274,6 +292,10 @@ public class main extends Application {
 
             TreeView<String> localView = new TreeView<>(rootNode);
             HBox.setHgrow(localView, Priority.SOMETIMES);
+
+            localView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+                if (!new File(newValue.getValue()).isDirectory())
+                    client.sendFiles(Collections.singletonList(new File(((FileTreeItem) newValue).getFullPath())));});
 
             TreeItem<String> remoteRoot = new TreeItem<>("Remote Repository", new ImageView(compImg));
             for (Path x : FileSystems.getDefault().getPath("testFiles")) remoteRoot.getChildren().add(new FileTreeItem(x, true));
@@ -292,7 +314,6 @@ public class main extends Application {
             //---------------------------------------------------------------
 
             Button attachBtn = new Button("+");
-
             attachBtn.setOnAction(e-> {
                 FileChooser explorer = new FileChooser();
                 explorer.setInitialDirectory(new File("testFiles/"));
@@ -307,14 +328,7 @@ public class main extends Application {
                 );
 
                 List<File> choice = explorer.showOpenMultipleDialog(primaryStage);
-
-                if (choice != null) {
-                    for (File x : choice){
-                        client.sendFile(x);
-                        System.out.println(x);
-                    }
-                }
-
+                if (choice != null) client.sendFiles(choice);
             });
 
             TextField message = new TextField();
@@ -332,33 +346,17 @@ public class main extends Application {
                             int pos = message.getCaretPosition();
                             message.setText(message.getText().substring(0, pos - 1) + message.getText().substring(pos, message.getLength()));
                             message.positionCaret(pos - 1);
-                        } else {
-                            if (client.send(loginSystem.getUsername(), message.getText())){
-                                errorLog.setText("");
-                                message.setText("");
-                            } else {
-                                errorLog.setText("The server has disconnected.");
-                                message.setText(message.getText().substring(0, message.getLength()-1));
-                                message.selectPositionCaret(message.getLength());
-                            }
-                        }
+                        } else client.send(message.getText());
                     } else if (message.getLength() <= 1) {
                         errorLog.setText("Message is blank!");
                         message.setText("");
-                    } else if (client.send(loginSystem.getUsername(), message.getText())){
-                        errorLog.setText("");
-                        message.setText("");
-                    } else {
-                        errorLog.setText("The server has disconnected.");
-                        message.setText(message.getText().substring(0, message.getLength()-1));
-                        message.selectPositionCaret(message.getLength());
-                    }
+                    } else client.send(message.getText());
                 }
             });
 
             //---------------------------------------------------------------
 
-            clientPage.getChildren().addAll(new ToolBar(homeBtn, textField, nodeBtn), content, new ToolBar(attachBtn, message));
+            clientPage.getChildren().addAll(new ToolBar(homeBtn, textField, nodeBtn, expander, clientStatus), content, new ToolBar(attachBtn, message));
         }
 
         //start stage
