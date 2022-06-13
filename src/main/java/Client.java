@@ -1,6 +1,7 @@
 import java.io.*;
 import java.net.Socket;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class Client extends Connection {
     private DataOutputStream dataOut = null;
@@ -8,9 +9,11 @@ public class Client extends Connection {
     private BufferedReader in = null;
     private Socket skt = null;
     private final String address;
+    private final main main;
 
-    public Client(int port, String address) {
+    public Client(int port, main main, String address) {
         this.address = address;
+        this.main = main;
         connected = connect(port);
     }
 
@@ -32,11 +35,14 @@ public class Client extends Connection {
     public void send(String message) { out.println(config.get("cmd").replaceAll("body", message)); }
 
     public void sendFiles(List<File> files) {
+        if (null == dataOut) return;
         try {
+            main.updateLocalProg(0.0);
             dataOut.writeUTF("files");
 
             int bytes;
             byte[] buffer = new byte[16*1024];
+            double progress = 0.0;
 
             dataOut.writeInt(files.size());
             for (File file : files) {
@@ -46,8 +52,13 @@ public class Client extends Connection {
                 FileInputStream fileIn = new FileInputStream(file);
 
                 while ((bytes = fileIn.read(buffer)) != -1) {
+                    //System.out.println(bytes + " / " + file.length() + " " + ((double)bytes / file.length() * 100) + "%");
                     dataOut.write(buffer, 0, bytes);
                     dataOut.flush();
+
+                    progress += (double)bytes / file.length() / files.size();
+
+                    main.updateLocalProg(progress);
                 }
 
                 fileIn.close();

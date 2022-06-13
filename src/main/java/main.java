@@ -1,5 +1,6 @@
 import FileBrowser.FileTreeItem;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -31,6 +32,7 @@ public class main extends Application {
     Server server = null;
     Thread srvrThread = null;
     final TextArea textArea = new TextArea(), serverLogger = new TextArea();
+    final ProgressBar localProg = new ProgressBar(0), remoteProg = new ProgressBar(0);
     final Label serverStatus = new Label(), clientStatus = new Label();
     final ImageView imOn = new ImageView(new Image(Objects.requireNonNull(getClass().getResourceAsStream("on_button.png")))),
             imOff = new ImageView(new Image(Objects.requireNonNull(getClass().getResourceAsStream("off_button.png"))));
@@ -39,6 +41,10 @@ public class main extends Application {
 
     public void logServer(String str) { synchronized (serverLogger) {serverLogger.appendText(str + "\n");} }
 
+    public void updateLocalProg(double percent) { synchronized (localProg) { localProg.setProgress(percent); } }
+
+    public void updateRemoteProg(double percent) { synchronized (remoteProg) { remoteProg.setProgress(percent); } }
+
     public void updateStatus(boolean stat) {
         if (stat) {
             if (server != null) {
@@ -46,7 +52,7 @@ public class main extends Application {
                 serverStatus.setGraphic(imOn);
             }
             if (client != null) {
-                clientStatus.setText("Connection Status: Connected ");
+                clientStatus.setText("Status: Connected ");
                 clientStatus.setGraphic(imOn);
             }
         } else {
@@ -55,7 +61,7 @@ public class main extends Application {
                 serverStatus.setGraphic(imOff);
             }
             if (client != null) {
-                clientStatus.setText("Connection Status: Disconnected ");
+                clientStatus.setText("Status: Disconnected ");
                 clientStatus.setGraphic(imOff);
             }
         }
@@ -146,7 +152,7 @@ public class main extends Application {
             Button clientBtn = new Button("Client");
             clientBtn.setPrefSize(200, 10);
             clientBtn.setOnAction(e -> {
-                client = new Client(port, address);
+                client = new Client(port, this, address);
                 updateStatus(client.getConnection());
                 primaryStage.getScene().setRoot(clientPage);
             });
@@ -235,7 +241,7 @@ public class main extends Application {
         }
 
         //Client
-        {
+        { //Top Toolbar
             clientPage.setSpacing(10);
 
             Button homeBtn = new Button("Home");
@@ -279,7 +285,7 @@ public class main extends Application {
             Pane expander = new Pane();
             HBox.setHgrow(expander, Priority.ALWAYS);
 
-            //---------------------------------------------------------------
+            //--------------------------------------------------------------- Content
 
             Image compImg = new Image(Objects.requireNonNull(ClassLoader.getSystemResourceAsStream("computer.png")));
 
@@ -294,7 +300,7 @@ public class main extends Application {
             HBox.setHgrow(localView, Priority.SOMETIMES);
 
             localView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-                if (!new File(newValue.getValue()).isDirectory())
+                if (!new File(newValue.getValue()).isDirectory() && !newValue.equals(rootNode))
                     client.sendFiles(Collections.singletonList(new File(((FileTreeItem) newValue).getFullPath())));});
 
             TreeItem<String> remoteRoot = new TreeItem<>("Remote Repository", new ImageView(compImg));
@@ -302,16 +308,53 @@ public class main extends Application {
             remoteRoot.setExpanded(true);
 
             TreeView<String> remoteView = new TreeView<>(remoteRoot);
-
             HBox.setHgrow(remoteView, Priority.SOMETIMES);
 
-            HBox content = new HBox(localView, remoteView);
+            // -------------------------------------
+
+            localProg.setPrefHeight(25);
+
+            Button detBtn = new Button("Details");
+            detBtn.setPrefHeight(25);
+
+            GridPane grid = new GridPane();
+            grid.setPadding(new Insets(5));
+            grid.setAlignment(Pos.BOTTOM_CENTER);
+
+            grid.add(localProg, 0, 0);
+            grid.add(detBtn, 1, 0);
+            grid.setPickOnBounds(false);
+
+            StackPane localStack = new StackPane(localView, grid);
+            HBox.setHgrow(localStack, Priority.SOMETIMES);
+
+            localProg.prefWidthProperty().bind(localStack.widthProperty().subtract(70));
+
+            remoteProg.setPrefHeight(25);
+
+            Button detBtn2 = new Button("Details");
+            detBtn2.setPrefHeight(25);
+
+            GridPane grid2 = new GridPane();
+            grid2.setPadding(new Insets(5));
+            grid2.setAlignment(Pos.BOTTOM_CENTER);
+
+            grid2.add(remoteProg, 0, 0);
+            grid2.add(detBtn2, 1, 0);
+            grid2.setPickOnBounds(false);
+
+            StackPane remoteStack = new StackPane(remoteView, grid2);
+            HBox.setHgrow(remoteStack, Priority.SOMETIMES);
+
+            remoteProg.prefWidthProperty().bind(remoteStack.widthProperty().subtract(70));
+
+            HBox content = new HBox(localStack, remoteStack);
             VBox.setVgrow(content, Priority.SOMETIMES);
 
             content.setSpacing(10);
             content.setPadding(new Insets(5, 10, 0, 10));
 
-            //---------------------------------------------------------------
+            //--------------------------------------------------------------- Bottom Toolbar
 
             Button attachBtn = new Button("+");
             attachBtn.setOnAction(e-> {
@@ -338,8 +381,7 @@ public class main extends Application {
                 if (keyEvent.getCode() == KeyCode.ENTER) {
                     if (keyEvent.isShiftDown()) message.appendText("\n");
                     else if (!client.getConnection()) {
-                        if (!client.getConnection())
-                            nodeBtn.fire();
+                        nodeBtn.fire();
                         if (!client.getConnection()) {
                             errorLog.setText("Not connected to a server. Please try another port.");
 
@@ -349,10 +391,16 @@ public class main extends Application {
                         } else client.send(message.getText());
                     } else if (message.getLength() <= 1) {
                         errorLog.setText("Message is blank!");
-                        message.setText("");
+                        //message.setText("");
+                        message.clear();
                     } else client.send(message.getText());
                 }
             });
+
+            content.setFocusTraversable(false);
+            message.requestFocus();
+
+            Platform.runLater(message::requestFocus);
 
             //---------------------------------------------------------------
 
